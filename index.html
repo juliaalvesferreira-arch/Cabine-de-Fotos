@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Cabine de Fotos • Quinta dos Esquilos</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Jost:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Dancing+Script:wght@600;700&family=Jost:wght@400;500;600&family=Montserrat:wght@500;600&display=swap" rel="stylesheet">
 <style>
 :root{--cream:#faf5ee;--sand:#f0e6d8;--brown:#3f2412;--brown2:#6b4226;--copper:#8a5a36;--gold:#b8935a;--blush:#e8b4a0;--sage:#6f7a55;--line:#e3d3ba}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -106,7 +106,7 @@ canvas.prev{display:block;max-width:100%;max-height:52vh;margin:0 auto;border-ra
 
   <!-- 1. O que o cliente recebe -->
   <section data-s="base">
-    <div class="card"><h2>Nome do evento</h2><input id="evName" type="text" placeholder="Ex.: Casamento Maria & João" maxlength="50"></div>
+    <div class="card"><h2>Nome do evento</h2><input id="evName" type="text" placeholder="Ex.: Casamento Maria & João" maxlength="50"><p class="hint">Também é o nome dos arquivos salvos: Nome_Celular, ex.: Casamento_Maria_Joao_11994166327.jpg</p></div>
     <div class="card"><h2>O que o cliente vai receber?</h2>
       <div class="opts" id="segOut">
         <button data-o="photo"><b>📷 Foto</b><span>Arte com as fotos e a moldura</span></button>
@@ -168,6 +168,11 @@ canvas.prev{display:block;max-width:100%;max-height:52vh;margin:0 auto;border-ra
     </div>
     <div class="card"><h2>Texto (opcional)</h2>
       <input id="txt" type="text" placeholder="Ex.: Maria & João • 15/11/2026" maxlength="40">
+      <div class="seg" id="segTF" style="margin-top:10px">
+        <button data-tf="elegant" style="font:600 21px 'Cormorant Garamond',Georgia,serif">Elegante</button>
+        <button data-tf="script" style="font:700 22px 'Dancing Script',cursive">Manuscrita</button>
+        <button data-tf="modern" style="font:600 14px Montserrat,system-ui,sans-serif">Moderna</button>
+      </div>
       <div class="row" style="margin-top:10px"><span style="font-size:13px;color:var(--copper)">Cor do texto</span><input type="color" id="tcIn"><button class="btn ghost sm" id="tcAuto">Automática</button></div>
     </div>
   </section>
@@ -205,11 +210,11 @@ canvas.prev{display:block;max-width:100%;max-height:52vh;margin:0 auto;border-ra
   <div class="card" id="gifCardR" style="display:none"><img id="gifPrev" alt="GIF" style="display:block;max-width:100%;max-height:52vh;margin:0 auto;border-radius:6px"></div>
   <div class="card"><h2>WhatsApp do cliente (opcional)</h2>
     <input id="phone" type="tel" inputmode="tel" placeholder="(11) 91234-5678">
-    <p class="hint">Com número, abre direto a conversa do cliente (a foto vai copiada: toque e segure no campo de mensagem e cole). Sem número, você escolhe o contato.</p>
+    <p class="hint">Com número, salva a foto e o GIF no aparelho e abre direto a conversa do cliente (a foto também vai copiada: toque e segure no campo de mensagem e cole). Sem número, você escolhe o contato.</p>
   </div>
   <button class="btn sage" id="wa">Enviar pelo WhatsApp</button>
   <button class="btn ghost" id="share">Compartilhar com a foto anexada</button>
-  <button class="btn ghost" id="save">Salvar no aparelho</button>
+  <button class="btn ghost" id="save">Salvar na galeria (foto e GIF)</button>
   <button class="btn ghost" id="retake">Refazer fotos</button>
   <button class="btn gold" id="next">Próximo cliente</button>
   <button class="btn ghost" id="home2">← Eventos</button>
@@ -224,6 +229,8 @@ const LOGO_B='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA+gAAAMDCAYAAAAxID+l
 const PALETTE=['#3f2412','#b8935a','#e8b4a0','#6f7a55','#f3e9dc','#ffffff','#111111'];
 const PH={1:1080,2:810,3:720};
 const FONT='600 72px "Cormorant Garamond",Georgia,serif';
+const FONTS={elegant:{css:'"Cormorant Garamond",Georgia,serif',w:600,k:1},script:{css:'"Dancing Script","Brush Script MT",cursive',w:700,k:1.12},modern:{css:'Montserrat,system-ui,sans-serif',w:600,k:.72}};
+const fontStr=c=>{const f=FONTS[c.textFont]||FONTS.elegant;return f.w+' '+Math.round(72*f.k)+'px '+f.css};
 const OUTNAME={photo:'Foto',gif:'GIF',both:'Foto + GIF'};
 let EV=[],E=null,A=null,stream=null,photos=[],file=null,pngBlob=null,gifFile=null,gifUrl=null,outKind='art',shooting=false,facing='user',step=0;
 
@@ -233,9 +240,9 @@ const uid=()=>'e'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 
 // ---------- configuração do evento ----------
 const defGif=()=>({frame:true,orient:'h',delay:800});
-const newCfg=()=>({id:uid(),ts:Date.now(),name:'',n:3,out:'photo',format:'strip',frame:true,color:'#3f2412',textColor:null,text:'',footer:'quinta',logoData:null,msg:'Sua foto da cabine! 📸',countdown:3,gif:defGif()});
+const newCfg=()=>({id:uid(),ts:Date.now(),name:'',n:3,out:'photo',format:'strip',frame:true,color:'#3f2412',textColor:null,text:'',textFont:'elegant',footer:'quinta',logoData:null,msg:'Sua foto da cabine! 📸',countdown:3,gif:defGif()});
 function norm(c){   // compatível com eventos salvos em versões anteriores
-  const o={...c};o.out=o.out||(c.gif&&c.gif.on?'both':'photo');o.format=o.format||'strip';
+  const o={...c};o.out=o.out||(c.gif&&c.gif.on?'both':'photo');o.format=o.format||'strip';o.textFont=FONTS[o.textFont]?o.textFont:'elegant';
   o.gif={...defGif(),...(c.gif||{})};if(o.out!=='photo'&&o.n<2)o.n=2;return o;
 }
 
@@ -254,6 +261,7 @@ function getImg(src){if(!imgCache.has(src))imgCache.set(src,new Promise(r=>{cons
 const lum=hex=>{const n=parseInt(hex.slice(1),16);return .299*(n>>16)+.587*((n>>8)&255)+.114*(n&255)};
 const autoText=c=>lum(c)>150?'#3f2412':'#f3e9dc';
 async function prep(c){   // imagem do rodapé (a mesma para a foto e para o GIF)
+  if(c.text){try{await Promise.race([document.fonts.load(fontStr(c),c.text),sleep(1500)])}catch(e){}}
   if(c.footer==='quinta')return getImg(lum(c.color)>150?LOGO_B:LOGO_G);
   if(c.footer==='custom'&&c.logoData)return getImg(c.logoData);
   return null;
@@ -265,7 +273,7 @@ function drawCover(ctx,src,x,y,w,h){
 function drawFooter(ctx,c,logo,W,H,P,top){   // logo + texto no rodapé da moldura
   const fg=c.textColor||autoText(c.color),avail=H-top-20,zone=c.text?avail-120:avail;
   if(logo){const r=Math.min((W-2*P)*.83/logo.width,(zone-20)/logo.height),w=logo.width*r,h=logo.height*r;ctx.drawImage(logo,(W-w)/2,top+(zone-h)/2,w,h)}
-  if(c.text){ctx.fillStyle=fg;ctx.textAlign='center';ctx.font=FONT;ctx.fillText(c.text,W/2,H-62,W-2*P)}
+  if(c.text){ctx.fillStyle=fg;ctx.textAlign='center';ctx.font=fontStr(c);ctx.fillText(c.text,W/2,H-62,W-2*P)}
 }
 function placeholder(ctx,x,y,w,h,label,light,fg){
   ctx.fillStyle=light?'#00000022':'#ffffff33';ctx.fillRect(x,y,w,h);
@@ -459,6 +467,7 @@ async function paintEdit(){
   qsa('#segGD button').forEach(b=>b.classList.toggle('on',+b.dataset.d===G.delay));
   qsa('#segC button').forEach(b=>b.classList.toggle('on',+b.dataset.s===E.countdown));
   qsa('#segF button').forEach(b=>b.classList.toggle('on',b.dataset.f===E.footer));
+  qsa('#segTF button').forEach(b=>b.classList.toggle('on',b.dataset.tf===E.textFont));
   qsa('#swatches .sw').forEach(b=>b.classList.toggle('on',b.dataset.c===E.color));
   $('tcIn').value=E.textColor||autoText(E.color);
   $('tcAuto').style.borderColor=E.textColor?'':'#b8935a';
@@ -481,6 +490,7 @@ $('segGO').onclick=e=>{if(e.target.dataset.o){E.gif.orient=e.target.dataset.o;pa
 $('segGM').onclick=e=>{if(e.target.dataset.m){E.gif.frame=e.target.dataset.m==='1';showStepKeep()}};
 $('segGD').onclick=e=>{if(e.target.dataset.d){E.gif.delay=+e.target.dataset.d;paintEdit()}};
 $('segC').onclick=e=>{if(e.target.dataset.s){E.countdown=+e.target.dataset.s;paintEdit()}};
+$('segTF').onclick=e=>{if(e.target.dataset.tf){E.textFont=e.target.dataset.tf;paintEdit()}};
 $('segF').onclick=e=>{if(e.target.dataset.f){E.footer=e.target.dataset.f;paintEdit()}};
 function showStepKeep(){const L=stepsList();if(step>=L.length)step=L.length-1;paintEdit();$('stepLbl').textContent='Passo '+(step+1)+' de '+L.length+' • '+TITLES[L[step]];$('progFill').style.width=((step+1)/L.length*100)+'%'}
 $('evName').oninput=e=>{E.name=e.target.value};
@@ -559,7 +569,15 @@ $('shoot').onclick=async()=>{
 };
 
 // ---------- resultado / envio ----------
-function download(f){const a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();a.remove()}
+function baseName(){   // NomeDoEvento_Celular (ou NomeDoEvento_data-hora, se não houver número)
+  const slug=x=>x.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+  const d=$('phone').value.replace(/\D/g,''),n=new Date(),p=v=>String(v).padStart(2,'0');
+  const tag=d||(''+n.getFullYear()+p(n.getMonth()+1)+p(n.getDate())+'-'+p(n.getHours())+p(n.getMinutes())+p(n.getSeconds()));
+  return (slug((A&&A.name)||'')||'Cabine')+'_'+tag;
+}
+const fileNameFor=f=>baseName()+(f.type==='image/gif'?'.gif':'.jpg');
+const named=f=>new File([f],fileNameFor(f),{type:f.type});
+function download(f){const a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=fileNameFor(f);document.body.appendChild(a);a.click();a.remove()}
 const curFile=()=>outKind==='gif'?gifFile:file;
 function setOut(k){
   outKind=k;$('artCard').style.display=k==='art'?'':'none';$('gifCardR').style.display=k==='gif'?'':'none';
@@ -567,11 +585,22 @@ function setOut(k){
   $('share').textContent=k==='gif'?'Compartilhar GIF (escolher contato)':'Compartilhar com a foto anexada';
 }
 $('segRes').onclick=e=>{if(e.target.dataset.k)setOut(e.target.dataset.k)};
-$('save').onclick=()=>{const f=curFile();if(f){download(f);toast(outKind==='gif'?'GIF salvo no aparelho.':'Foto salva no aparelho.')}};
+const allFiles=()=>[file,gifFile].filter(Boolean);
+const isIOS=()=>/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+async function saveAll(){for(const f of allFiles()){download(f);await sleep(400)}}
+$('save').onclick=async()=>{
+  const all=allFiles();if(!all.length)return;
+  const allN=all.map(named);
+  if(navigator.canShare&&navigator.canShare({files:allN})){   // no iPhone, é o único caminho para salvar em Fotos: toque em "Salvar imagens"
+    try{await navigator.share({files:allN});return}catch(e){if(e.name==='AbortError')return}
+  }
+  await saveAll();toast('Arquivos salvos no aparelho.');
+};
 function phoneDigits(){let d=$('phone').value.replace(/\D/g,'');if(d&&d.length<=11&&!d.startsWith('55'))d='55'+d;return d}
 async function shareFile(f){   // menu de compartilhar do celular, com o arquivo já anexado
-  if(navigator.canShare&&navigator.canShare({files:[f]})){
-    try{await navigator.share({files:[f],text:A.msg||''});return true}catch(e){if(e.name==='AbortError')return true}
+  const g=named(f);
+  if(navigator.canShare&&navigator.canShare({files:[g]})){
+    try{await navigator.share({files:[g],text:A.msg||''});return true}catch(e){if(e.name==='AbortError')return true}
   }
   return false;
 }
@@ -585,16 +614,13 @@ $('wa').onclick=async()=>{
     setTimeout(()=>{location.href='https://wa.me/?text='+encodeURIComponent(msg)},1000);return;
   }
   if(d.length<12){toast('Confira o número: use DDD + telefone.');return}
-  if(outKind==='gif'){   // a área de transferência não aceita GIF: salva e abre a conversa
-    download(f);toast('GIF salvo! Na conversa, anexe pela galeria/arquivos. Para anexar automático, use "Compartilhar GIF".');
-    setTimeout(()=>{location.href='https://wa.me/'+d+'?text='+encodeURIComponent(msg)},1600);return;
-  }
-  // com número: abre direto a conversa do cliente (o WhatsApp não aceita anexo por link, então a foto vai copiada)
+  // com número: copia a foto, salva foto e GIF no aparelho e abre direto a conversa do cliente
+  // (o WhatsApp não aceita anexo por link: a foto vai copiada e o GIF fica salvo para anexar)
   let copied=false;
-  try{if(window.ClipboardItem&&navigator.clipboard&&pngBlob){await navigator.clipboard.write([new ClipboardItem({'image/png':pngBlob})]);copied=true}}catch(e){}
-  if(!copied)download(f);
-  toast(copied?'Foto copiada! Na conversa, toque e segure no campo de mensagem e escolha Colar.':'Foto salva! Na conversa, anexe pela galeria.');
-  setTimeout(()=>{location.href='https://wa.me/'+d+'?text='+encodeURIComponent(msg)},copied?1300:900);
+  try{if(outKind==='art'&&window.ClipboardItem&&navigator.clipboard&&pngBlob){await navigator.clipboard.write([new ClipboardItem({'image/png':pngBlob})]);copied=true}}catch(e){}
+  await saveAll();
+  toast((copied?'Foto copiada: na conversa, toque e segure no campo de mensagem e cole. ':'')+(isIOS()?'Arquivos salvos em Arquivos > Downloads. Para a galeria, use "Salvar na galeria".':'Arquivos salvos no aparelho.'));
+  setTimeout(()=>{location.href='https://wa.me/'+d+'?text='+encodeURIComponent(msg)},1800);
 };
 $('share').onclick=async()=>{const f=curFile();if(!f){toast('Aguarde um instante e tente de novo.');return}if(!(await shareFile(f))){download(f);toast('Seu aparelho não permite anexar direto. Arquivo salvo.')}};
 $('retake').onclick=()=>{show('cam');startCam()};
