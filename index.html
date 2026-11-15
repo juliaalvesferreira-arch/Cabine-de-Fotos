@@ -141,8 +141,10 @@ canvas.prev{display:block;max-width:100%;max-height:52vh;margin:0 auto;border-ra
   <div class="card"><canvas id="final" class="prev"></canvas></div>
   <div class="card"><h2>WhatsApp do cliente (opcional)</h2>
     <input id="phone" type="tel" inputmode="tel" placeholder="(11) 91234-5678">
+    <p class="hint">Com número, abre direto a conversa do cliente (a foto vai copiada: toque e segure no campo de mensagem e cole). Sem número, você escolhe o contato.</p>
   </div>
   <button class="btn sage" id="wa">Enviar pelo WhatsApp</button>
+  <button class="btn ghost" id="share">Compartilhar com a foto anexada</button>
   <button class="btn ghost" id="save">Salvar foto no aparelho</button>
   <button class="btn ghost" id="retake">Refazer fotos</button>
   <button class="btn gold" id="next">Próximo cliente</button>
@@ -158,7 +160,7 @@ const LOGO_B='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA+gAAAMDCAYAAAAxID+l
 const PALETTE=['#3f2412','#b8935a','#e8b4a0','#6f7a55','#f3e9dc','#ffffff','#111111'];
 const PH={1:1080,2:810,3:720};
 const FONT='600 72px "Cormorant Garamond",Georgia,serif';
-let EV=[],E=null,A=null,stream=null,photos=[],file=null,shooting=false,facing='user';
+let EV=[],E=null,A=null,stream=null,photos=[],file=null,pngBlob=null,shooting=false,facing='user';
 
 function toast(t){const e=$('toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',4500)}
 function show(id){qsa('.view').forEach(v=>v.classList.toggle('on',v.id===id));window.scrollTo(0,0)}
@@ -337,25 +339,39 @@ $('shoot').onclick=async()=>{
   }
   shooting=false;stopCam();
   render($('final'),photos,A,await prep(A));
-  file=null;$('final').toBlob(b=>{file=new File([b],'foto-cabine.jpg',{type:'image/jpeg'})},'image/jpeg',.92);
+  file=null;pngBlob=null;
+  $('final').toBlob(b=>{file=new File([b],'foto-cabine.jpg',{type:'image/jpeg'})},'image/jpeg',.92);
+  $('final').toBlob(b=>{pngBlob=b},'image/png');
   show('result');
 };
 
 // ---------- resultado / envio ----------
 function download(){const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download='foto-cabine.jpg';document.body.appendChild(a);a.click();a.remove()}
 $('save').onclick=()=>{if(file){download();toast('Foto salva no aparelho.')}};
+function phoneDigits(){let d=$('phone').value.replace(/\D/g,'');if(d&&d.length<=11&&!d.startsWith('55'))d='55'+d;return d}
+async function shareFile(){   // menu de compartilhar do celular, com a imagem já anexada
+  if(navigator.canShare&&navigator.canShare({files:[file]})){
+    try{await navigator.share({files:[file],text:A.msg||''});return true}catch(e){if(e.name==='AbortError')return true}
+  }
+  return false;
+}
 $('wa').onclick=async()=>{
   if(!file){toast('Aguarde um instante e tente de novo.');return}
-  const msg=A.msg||'';
-  if(navigator.canShare&&navigator.canShare({files:[file]})){
-    try{await navigator.share({files:[file],text:msg});return}catch(e){if(e.name==='AbortError')return}
+  const msg=A.msg||'',d=phoneDigits();
+  if(!d){   // sem número: escolher o contato no menu de compartilhar
+    if(await shareFile())return;
+    download();toast('Foto salva! Abra o WhatsApp e anexe pela galeria.');
+    setTimeout(()=>{location.href='https://wa.me/?text='+encodeURIComponent(msg)},900);return;
   }
-  download();
-  let d=$('phone').value.replace(/\D/g,'');
-  if(d&&d.length<=11&&!d.startsWith('55'))d='55'+d;
-  toast('Foto salva! No WhatsApp, anexe-a pela galeria.');
-  setTimeout(()=>window.open(d?'https://wa.me/'+d+'?text='+encodeURIComponent(msg):'https://wa.me/?text='+encodeURIComponent(msg),'_blank'),900);
+  if(d.length<12){toast('Confira o número: use DDD + telefone.');return}
+  // com número: abre direto a conversa do cliente (o WhatsApp não aceita anexo por link, então a foto vai copiada)
+  let copied=false;
+  try{if(window.ClipboardItem&&navigator.clipboard&&pngBlob){await navigator.clipboard.write([new ClipboardItem({'image/png':pngBlob})]);copied=true}}catch(e){}
+  if(!copied)download();
+  toast(copied?'Foto copiada! Na conversa, toque e segure no campo de mensagem e escolha Colar.':'Foto salva! Na conversa, anexe pela galeria.');
+  setTimeout(()=>{location.href='https://wa.me/'+d+'?text='+encodeURIComponent(msg)},copied?1300:900);
 };
+$('share').onclick=async()=>{if(!file){toast('Aguarde um instante e tente de novo.');return}if(!(await shareFile())){download();toast('Seu aparelho não permite anexar direto. Foto salva na galeria.')}};
 $('retake').onclick=()=>{show('cam');startCam()};
 $('next').onclick=()=>{$('phone').value='';file=null;show('cam');startCam()};
 $('home2').onclick=()=>{$('phone').value='';file=null;show('home')};
