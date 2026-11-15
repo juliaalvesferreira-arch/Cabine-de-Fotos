@@ -86,6 +86,10 @@ canvas.prev{display:block;max-width:100%;max-height:52vh;margin:0 auto;border-ra
   <div class="brand"><h1 id="editTitle">Novo evento</h1></div>
   <div class="card"><h2>Nome do evento</h2><input id="evName" type="text" placeholder="Ex.: Casamento Maria & João" maxlength="50"></div>
   <div class="card"><h2>Fotos por arte</h2><div class="seg" id="segN"><button data-n="1">1</button><button data-n="2">2</button><button data-n="3">3</button></div></div>
+  <div class="card"><h2>Formato da arte</h2>
+    <div class="seg" id="segFM"><button data-fm="strip">Tira (4x6)</button><button data-fm="story">Stories (9:16)</button></div>
+    <p class="hint">Stories: 1080 x 1920, ideal para postar no Instagram.</p>
+  </div>
   <div class="card"><h2>Moldura</h2>
     <div class="seg" id="segM"><button data-m="1">Com moldura</button><button data-m="0">Sem moldura</button></div>
     <div id="frameBox" style="margin-top:14px">
@@ -121,9 +125,18 @@ canvas.prev{display:block;max-width:100%;max-height:52vh;margin:0 auto;border-ra
     <div id="gifBox" style="display:none;margin-top:12px">
       <label class="lb">Nome na parte inferior</label>
       <input id="gText" type="text" maxlength="40" placeholder="Quinta dos Esquilos">
-      <label class="lb" style="margin-top:14px">Fundo do nome</label>
+      <label class="lb" style="margin-top:14px">Logo no GIF (parte superior)</label>
+      <div class="seg" id="segGL"><button data-l="none">Nenhum</button><button data-l="quinta">Logo Quinta</button><button data-l="custom">Minha imagem</button></div>
+      <div id="gLogoBox" style="display:none;margin-top:12px">
+        <div class="row"><div class="chk"><img id="gLogoThumb" alt=""></div>
+          <div><label class="btn ghost sm" for="gLogoIn">Escolher imagem</label><input id="gLogoIn" type="file" accept="image/png,image/*" hidden><button class="btn ghost sm" id="gLogoDel" style="margin-left:6px">Remover</button></div></div>
+        <p class="hint">Use PNG sem fundo: a transparência é mantida.</p>
+      </div>
+      <label class="lb" style="margin-top:14px">Fundo do nome e do logo</label>
       <div class="seg" id="segGB"><button data-b="1">Com fundo</button><button data-b="0">Sem fundo</button></div>
       <div class="row" id="gbRow" style="margin-top:12px"><div class="row" id="gSwatches"><input type="color" id="gBg" aria-label="Outra cor"></div></div>
+      <label class="lb" style="margin-top:14px">Formato do GIF</label>
+      <div class="seg" id="segGO"><button data-o="h">Horizontal</button><button data-o="v">Vertical (stories)</button></div>
       <label class="lb" style="margin-top:14px">Velocidade</label>
       <div class="seg" id="segGD"><button data-d="1200">Lenta</button><button data-d="800">Normal</button><button data-d="500">Rápida</button></div>
       <canvas id="gPrev" class="prev" style="margin-top:14px"></canvas>
@@ -206,24 +219,31 @@ function drawCover(ctx,src,x,y,w,h){
   const sw=src.videoWidth||src.width,sh=src.videoHeight||src.height,k=Math.max(w/sw,h/sh);
   ctx.drawImage(src,(sw-w/k)/2,(sh-h/k)/2,w/k,h/k,x,y,w,h);
 }
+function layout(c){   // medidas da arte: tira (4x6) ou stories (9:16)
+  const n=c.n,story=c.format==='story';
+  if(c.frame===false){const ph=story?1920/n:PH[n];return{W:1080,H:Math.round(n*ph),P:0,G:0,pw:1080,ph}}
+  if(story){const W=1080,H=1920,P=60,G=32,F=380,ph=Math.floor((H-P-F-40-(n-1)*G)/n);return{W,H,P,G,pw:W-2*P,ph}}
+  const P=60,G=40,ph=PH[n],F=440;return{W:1200,H:P+n*ph+(n-1)*G+P+F,P,G,pw:1080,ph};
+}
+const arOf=c=>{const L=layout(c);return L.pw/L.ph};
 function render(cv,list,c,logo){
-  const n=c.n,W=1200,P=60,G=40,ph=PH[n],F=440,H=P+n*ph+(n-1)*G+P+F,ctx=cv.getContext('2d');
-  if(c.frame===false){   // sem moldura: só as fotos, lado a lado na vertical, sem borda
-    const w=1080,hh=n*ph;cv.width=w;cv.height=hh;ctx.fillStyle='#d9cfc0';ctx.fillRect(0,0,w,hh);
-    for(let i=0;i<n;i++){if(list&&list[i])drawCover(ctx,list[i],0,i*ph,w,ph);else{ctx.fillStyle='#6b4226';ctx.globalAlpha=.6;ctx.font=FONT;ctx.textAlign='center';ctx.fillText('foto '+(i+1),w/2,i*ph+ph/2+25);ctx.globalAlpha=1}}
+  const L=layout(c),{W,H,P,G,pw,ph}=L,n=c.n,ctx=cv.getContext('2d');
+  cv.width=W;cv.height=H;
+  if(c.frame===false){   // sem moldura: só as fotos, sem borda
+    ctx.fillStyle='#d9cfc0';ctx.fillRect(0,0,W,H);
+    for(let i=0;i<n;i++){const y=Math.round(i*ph);if(list&&list[i])drawCover(ctx,list[i],0,y,pw,Math.round((i+1)*ph)-y);else{ctx.fillStyle='#6b4226';ctx.globalAlpha=.6;ctx.font=FONT;ctx.textAlign='center';ctx.fillText('foto '+(i+1),W/2,y+ph/2+25);ctx.globalAlpha=1}}
     return;
   }
-  cv.width=W;cv.height=H;
   ctx.fillStyle=c.color;ctx.fillRect(0,0,W,H);          // moldura (a imagem PNG sem fundo é desenhada por cima, mantendo a transparência)
   const light=lum(c.color)>150,fg=c.textColor||autoText(c.color);
   for(let i=0;i<n;i++){
     const y=P+i*(ph+G);
-    if(list&&list[i])drawCover(ctx,list[i],P,y,1080,ph);
-    else{ctx.fillStyle=light?'#00000022':'#ffffff33';ctx.fillRect(P,y,1080,ph);ctx.fillStyle=fg;ctx.globalAlpha=.6;ctx.font=FONT;ctx.textAlign='center';ctx.fillText('foto '+(i+1),W/2,y+ph/2+25);ctx.globalAlpha=1}
+    if(list&&list[i])drawCover(ctx,list[i],P,y,pw,ph);
+    else{ctx.fillStyle=light?'#00000022':'#ffffff33';ctx.fillRect(P,y,pw,ph);ctx.fillStyle=fg;ctx.globalAlpha=.6;ctx.font=FONT;ctx.textAlign='center';ctx.fillText('foto '+(i+1),W/2,y+ph/2+25);ctx.globalAlpha=1}
   }
   const top=P+n*ph+(n-1)*G+20,avail=H-top-20,zone=c.text?avail-120:avail;
-  if(logo){const r=Math.min(900/logo.width,(zone-20)/logo.height),w=logo.width*r,h=logo.height*r;ctx.drawImage(logo,(W-w)/2,top+(zone-h)/2,w,h)}
-  if(c.text){ctx.fillStyle=fg;ctx.textAlign='center';ctx.font=FONT;ctx.fillText(c.text,W/2,H-62,1080)}
+  if(logo){const r=Math.min((W-2*P)*.83/logo.width,(zone-20)/logo.height),w=logo.width*r,h=logo.height*r;ctx.drawImage(logo,(W-w)/2,top+(zone-h)/2,w,h)}
+  if(c.text){ctx.fillStyle=fg;ctx.textAlign='center';ctx.font=FONT;ctx.fillText(c.text,W/2,H-62,W-2*P)}
 }
 
 // ---------- tela inicial (eventos) ----------
@@ -275,13 +295,14 @@ $('hex').oninput=e=>{let v=e.target.value.trim();if(v[0]!=='#')v='#'+v;if(/^#[0-
 $('segM').onclick=e=>{if(e.target.dataset.m){E.frame=e.target.dataset.m==='1';paintEdit()}};
 
 function openEdit(c){
-  E=c?{...c}:newCfg();E.gif={...defGif(),...(E.gif||{})};$('gText').value=E.gif.text;setPk(E.color);
+  E=c?{...c}:newCfg();E.format=E.format||'strip';E.gif={...defGif(),...(E.gif||{})};$('gText').value=E.gif.text;setPk(E.color);
   $('editTitle').textContent=c?'Editar evento':'Novo evento';
   $('evName').value=E.name;$('txt').value=E.text;$('msg').value=E.msg;
   show('edit');paintEdit();
 }
 async function paintEdit(){
   qsa('#segN button').forEach(b=>b.classList.toggle('on',+b.dataset.n===E.n));
+  qsa('#segFM button').forEach(b=>b.classList.toggle('on',b.dataset.fm===E.format));
   qsa('#segC button').forEach(b=>b.classList.toggle('on',+b.dataset.s===E.countdown));
   qsa('#segF button').forEach(b=>b.classList.toggle('on',b.dataset.f===E.footer));
   qsa('#swatches .sw').forEach(b=>b.classList.toggle('on',b.dataset.c===E.color));
@@ -298,6 +319,10 @@ async function paintEdit(){
   $('gBg').value=G.bg;$('gbRow').style.display=G.bgOn?'flex':'none';
   $('gifNeed').style.display=(G.on&&E.n===1)?'block':'none';
   $('gifBox').style.display=ga?'block':'none';
+  qsa('#segGL button').forEach(b=>b.classList.toggle('on',b.dataset.l===G.logo));
+  qsa('#segGO button').forEach(b=>b.classList.toggle('on',b.dataset.o===G.orient));
+  $('gLogoBox').style.display=G.logo==='custom'?'block':'none';
+  const gt=$('gLogoThumb');gt.style.display=G.logoData?'block':'none';if(G.logoData)gt.src=G.logoData;
   if(ga)gifPreview();
   $('tcIn').value=E.textColor||autoText(E.color);
   $('tcAuto').style.borderColor=E.textColor?'':'#b8935a';
@@ -312,6 +337,7 @@ $('txt').oninput=e=>{E.text=e.target.value;paintEdit()};
 $('msg').oninput=e=>{E.msg=e.target.value};
 $('tcIn').oninput=e=>{E.textColor=e.target.value;paintEdit()};
 $('tcAuto').onclick=()=>{E.textColor=null;paintEdit()};
+$('segFM').onclick=e=>{if(e.target.dataset.fm){E.format=e.target.dataset.fm;paintEdit()}};
 $('segN').onclick=e=>{if(e.target.dataset.n){E.n=+e.target.dataset.n;paintEdit()}};
 $('segC').onclick=e=>{if(e.target.dataset.s){E.countdown=+e.target.dataset.s;paintEdit()}};
 $('segF').onclick=e=>{if(e.target.dataset.f){E.footer=e.target.dataset.f;paintEdit()}};
@@ -337,19 +363,45 @@ $('saveOpen').onclick=async()=>{if(await saveEv()){renderHome();openCam(E)}};
 $('cancelEdit').onclick=()=>{show('home')};
 
 // ---------- GIF animado (codificador próprio, sem bibliotecas) ----------
-const defGif=()=>({on:false,text:'Quinta dos Esquilos',bgOn:true,bg:'#3f2412',delay:800});
+const defGif=()=>({on:false,text:'Quinta dos Esquilos',bgOn:true,bg:'#3f2412',delay:800,logo:'none',logoData:null,orient:'h'});
+const gifSize=c=>c.gif.orient==='v'?[405,720]:[480,Math.round(480*PH[c.n]/1080)];
 PALETTE.forEach(c=>{const b=document.createElement('button');b.className='sw';b.dataset.c=c;b.style.background=c;b.onclick=()=>{E.gif.bg=c;paintEdit()};$('gSwatches').insertBefore(b,$('gBg'))});
 $('segG').onclick=e=>{if(e.target.dataset.g){E.gif.on=e.target.dataset.g==='1';paintEdit()}};
 $('segGB').onclick=e=>{if(e.target.dataset.b){E.gif.bgOn=e.target.dataset.b==='1';paintEdit()}};
 $('segGD').onclick=e=>{if(e.target.dataset.d){E.gif.delay=+e.target.dataset.d;paintEdit()}};
 $('gText').oninput=e=>{E.gif.text=e.target.value;paintEdit()};
 $('gBg').oninput=e=>{E.gif.bg=e.target.value;paintEdit()};
+$('segGL').onclick=e=>{if(e.target.dataset.l){E.gif.logo=e.target.dataset.l;paintEdit()}};
+$('segGO').onclick=e=>{if(e.target.dataset.o){E.gif.orient=e.target.dataset.o;paintEdit()}};
+$('gLogoIn').onchange=e=>{const f=e.target.files[0];if(!f)return;
+  readLogo(f,url=>{E.gif.logoData=url;E.gif.logo='custom';paintEdit()});e.target.value=''};
+$('gLogoDel').onclick=()=>{E.gif.logoData=null;paintEdit()};
+function readLogo(f,cb){   // reduz a imagem mantendo o canal alfa (PNG sem fundo)
+  const u=URL.createObjectURL(f),i=new Image();
+  i.onload=()=>{const k=Math.min(1,1000/Math.max(i.width,i.height)),c=document.createElement('canvas');
+    c.width=Math.round(i.width*k);c.height=Math.round(i.height*k);c.getContext('2d').drawImage(i,0,0,c.width,c.height);
+    URL.revokeObjectURL(u);cb(c.toDataURL('image/png'))};
+  i.onerror=()=>toast('Não consegui abrir essa imagem.');i.src=u;
+}
+async function gifLogo(c){
+  const g=c.gif;
+  if(g.logo==='quinta')return getImg(g.bgOn&&lum(g.bg)>150?LOGO_B:LOGO_G);
+  if(g.logo==='custom'&&g.logoData)return getImg(g.logoData);
+  return null;
+}
 function pill(x,px,py,w,h,r){x.beginPath();x.moveTo(px+r,py);x.arcTo(px+w,py,px+w,py+h,r);x.arcTo(px+w,py+h,px,py+h,r);x.arcTo(px,py+h,px,py,r);x.arcTo(px,py,px+w,py,r);x.closePath()}
-function gifFrame(src,c,W,H){
+function gifFrame(src,c,W,H,logo){
   const cv=document.createElement('canvas');cv.width=W;cv.height=H;const x=cv.getContext('2d'),g=c.gif;
   drawCover(x,src,0,0,W,H);
+  if(logo){
+    const lh=H*(W>H?.26:.2),r=Math.min(W*.55/logo.width,lh/logo.height),w=logo.width*r,h=logo.height*r,ly=H*.04,pad=h*.16;
+    if(g.bgOn){const bw=w+pad*3,bh=h+pad*2;pill(x,W/2-bw/2,ly-pad+h*.04,bw,bh,pad*1.6);x.fillStyle=g.bg;x.fill()}
+    else{x.shadowColor='rgba(0,0,0,.55)';x.shadowBlur=h*.12}
+    x.drawImage(logo,W/2-w/2,ly+h*.04,w,h);
+    x.shadowColor='transparent';x.shadowBlur=0;x.shadowOffsetY=0;
+  }
   if(g.text){
-    let fs=Math.round(H*.085);x.font='600 '+fs+'px "Cormorant Garamond",Georgia,serif';
+    let fs=Math.round(Math.min(H*.085,W*.075));x.font='600 '+fs+'px "Cormorant Garamond",Georgia,serif';
     let tw=x.measureText(g.text).width;const maxW=W*.88-(g.bgOn?fs*1.6:0);
     if(tw>maxW){fs=Math.floor(fs*maxW/tw);x.font='600 '+fs+'px "Cormorant Garamond",Georgia,serif';tw=x.measureText(g.text).width}
     const py=H-fs*1.25,padX=fs*.8,padY=fs*.45;
@@ -357,13 +409,16 @@ function gifFrame(src,c,W,H){
     if(g.bgOn){const w=tw+padX*2,h=fs+padY*2;pill(x,W/2-w/2,py-h/2,w,h,h/2);x.fillStyle=g.bg;x.fill();x.fillStyle=autoText(g.bg)}
     else{x.fillStyle='#ffffff';x.shadowColor='rgba(0,0,0,.8)';x.shadowBlur=fs*.3;x.shadowOffsetY=2}
     x.fillText(g.text,W/2,py);
+    x.shadowColor='transparent';x.shadowBlur=0;x.shadowOffsetY=0;
   }
   return cv;
 }
-function gifPreview(){
-  const W=480,H=Math.round(W*PH[E.n]/1080),ph=document.createElement('canvas');ph.width=W;ph.height=H;
+let gpSeq=0;
+async function gifPreview(){
+  const my=++gpSeq,[W,H]=gifSize(E),logo=await gifLogo(E);if(my!==gpSeq)return;
+  const ph=document.createElement('canvas');ph.width=W;ph.height=H;
   const x=ph.getContext('2d'),gr=x.createLinearGradient(0,0,W,H);gr.addColorStop(0,'#d8c9b0');gr.addColorStop(1,'#8a5a36');x.fillStyle=gr;x.fillRect(0,0,W,H);
-  const f=gifFrame(ph,E,W,H),p=$('gPrev');p.width=W;p.height=H;p.getContext('2d').drawImage(f,0,0);
+  const f=gifFrame(ph,E,W,H,logo),p=$('gPrev');p.width=W;p.height=H;p.getContext('2d').drawImage(f,0,0);
 }
 function medianCut(px,K){
   const boxes=[px];
@@ -419,15 +474,15 @@ function encodeGif(datas,W,H,delayMs){
   b.push(0x3B);
   return new Uint8Array(b);
 }
-function makeGif(list,c){
-  const W=480,H=Math.round(W*PH[c.n]/1080);
-  const datas=list.map(p=>gifFrame(p,c,W,H).getContext('2d').getImageData(0,0,W,H).data);
+async function makeGif(list,c){
+  const [W,H]=gifSize(c),logo=await gifLogo(c);
+  const datas=list.map(p=>gifFrame(p,c,W,H,logo).getContext('2d').getImageData(0,0,W,H).data);
   return new Blob([encodeGif(datas,W,H,c.gif.delay)],{type:'image/gif'});
 }
 
 // ---------- câmera ----------
 async function openCam(c){
-  A=c;$('box').style.setProperty('--ar',1080/PH[A.n]);show('cam');startCam();
+  A=c;const gv=A.gif&&A.gif.on&&A.n>1&&A.gif.orient==='v';$('box').style.setProperty('--ar',gv?405/720:arOf(A));show('cam');startCam();
 }
 async function startCam(){
   stopCam();
@@ -459,7 +514,7 @@ $('shoot').onclick=async()=>{
   gifFile=null;$('segOut').style.display='none';
   if(A.gif&&A.gif.on&&A.n>1){
     $('status').textContent='Criando GIF…';await sleep(40);
-    try{const blob=makeGif(photos,A);gifFile=new File([blob],'gif-cabine.gif',{type:'image/gif'});
+    try{const blob=await makeGif(photos,A);gifFile=new File([blob],'gif-cabine.gif',{type:'image/gif'});
       if(gifUrl)URL.revokeObjectURL(gifUrl);gifUrl=URL.createObjectURL(blob);$('gifPrev').src=gifUrl;$('segOut').style.display='flex'}
     catch(err){toast('Não consegui criar o GIF.')}
   }
