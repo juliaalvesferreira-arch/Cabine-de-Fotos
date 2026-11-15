@@ -123,7 +123,7 @@ canvas.prev{display:block;max-width:100%;max-height:52vh;margin:0 auto;border-ra
   <!-- 2. Foto -->
   <section data-s="foto">
     <div class="card"><h2>Formato da foto</h2>
-      <div class="seg" id="segFM"><button data-fm="strip">Tira (4x6)</button><button data-fm="story">Stories (9:16)</button></div>
+      <div class="seg" id="segFM"><button data-fm="strip">Tira</button><button data-fm="story">Stories (9:16)</button><button data-fm="print">Impressão 10x15</button></div>
     </div>
     <div class="card"><h2>Moldura na foto</h2>
       <div class="seg" id="segM"><button data-m="1">Com moldura</button><button data-m="0">Sem moldura</button></div>
@@ -283,6 +283,10 @@ function placeholder(ctx,x,y,w,h,label,light,fg){
 // FOTO: tira (4x6) ou stories (9:16)
 function layout(c){
   const n=c.n,story=c.format==='story';
+  if(c.format==='print'){   // 10x15 cm (4x6 pol, 2:3), retrato, 1200x1800
+    if(c.frame===false){const ph=1800/n;return{W:1200,H:1800,P:0,G:0,pw:1200,ph}}
+    const W=1200,H=1800,P=60,G=32,F=320,ph=Math.floor((H-P-F-40-(n-1)*G)/n);return{W,H,P,G,pw:W-2*P,ph};
+  }
   if(c.frame===false){const ph=story?1920/n:PH[n];return{W:1080,H:Math.round(n*ph),P:0,G:0,pw:1080,ph}}
   if(story){const W=1080,H=1920,P=60,G=32,F=380,ph=Math.floor((H-P-F-40-(n-1)*G)/n);return{W,H,P,G,pw:W-2*P,ph}}
   const P=60,G=40,ph=PH[n],F=440;return{W:1200,H:P+n*ph+(n-1)*G+P+F,P,G,pw:1080,ph};
