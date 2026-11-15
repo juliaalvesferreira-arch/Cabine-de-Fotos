@@ -115,6 +115,20 @@ canvas.prev{display:block;max-width:100%;max-height:52vh;margin:0 auto;border-ra
     <div class="row" style="margin-top:10px"><span style="font-size:13px;color:var(--copper)">Cor do texto</span><input type="color" id="tcIn"><button class="btn ghost sm" id="tcAuto">Automática</button></div>
   </div>
   <div class="card"><h2>Contagem antes de cada foto</h2><div class="seg" id="segC"><button data-s="2">2 s</button><button data-s="3">3 s</button><button data-s="5">5 s</button></div></div>
+  <div class="card"><h2>GIF animado</h2>
+    <div class="seg" id="segG"><button data-g="0">Desligado</button><button data-g="1">Gerar GIF</button></div>
+    <p class="hint" id="gifNeed" style="display:none">O GIF precisa de 2 ou 3 fotos por arte.</p>
+    <div id="gifBox" style="display:none;margin-top:12px">
+      <label class="lb">Nome na parte inferior</label>
+      <input id="gText" type="text" maxlength="40" placeholder="Quinta dos Esquilos">
+      <label class="lb" style="margin-top:14px">Fundo do nome</label>
+      <div class="seg" id="segGB"><button data-b="1">Com fundo</button><button data-b="0">Sem fundo</button></div>
+      <div class="row" id="gbRow" style="margin-top:12px"><div class="row" id="gSwatches"><input type="color" id="gBg" aria-label="Outra cor"></div></div>
+      <label class="lb" style="margin-top:14px">Velocidade</label>
+      <div class="seg" id="segGD"><button data-d="1200">Lenta</button><button data-d="800">Normal</button><button data-d="500">Rápida</button></div>
+      <canvas id="gPrev" class="prev" style="margin-top:14px"></canvas>
+    </div>
+  </div>
   <div class="card"><h2>Mensagem do WhatsApp</h2><input id="msg" type="text" placeholder="Sua foto da cabine! 📸" maxlength="120"></div>
   <div class="card"><h2>Prévia da arte</h2><canvas id="prev" class="prev"></canvas></div>
   <button class="btn gold" id="saveOpen">Salvar e abrir cabine</button>
@@ -138,7 +152,9 @@ canvas.prev{display:block;max-width:100%;max-height:52vh;margin:0 auto;border-ra
 <!-- RESULTADO -->
 <div id="result" class="view">
   <div class="brand"><h1>Sua arte ficou pronta!</h1></div>
-  <div class="card"><canvas id="final" class="prev"></canvas></div>
+  <div class="seg" id="segOut" style="display:none;margin-bottom:12px"><button data-k="art">Arte</button><button data-k="gif">GIF</button></div>
+  <div class="card" id="artCard"><canvas id="final" class="prev"></canvas></div>
+  <div class="card" id="gifCardR" style="display:none"><img id="gifPrev" alt="GIF" style="display:block;max-width:100%;max-height:52vh;margin:0 auto;border-radius:6px"></div>
   <div class="card"><h2>WhatsApp do cliente (opcional)</h2>
     <input id="phone" type="tel" inputmode="tel" placeholder="(11) 91234-5678">
     <p class="hint">Com número, abre direto a conversa do cliente (a foto vai copiada: toque e segure no campo de mensagem e cole). Sem número, você escolhe o contato.</p>
@@ -160,7 +176,7 @@ const LOGO_B='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA+gAAAMDCAYAAAAxID+l
 const PALETTE=['#3f2412','#b8935a','#e8b4a0','#6f7a55','#f3e9dc','#ffffff','#111111'];
 const PH={1:1080,2:810,3:720};
 const FONT='600 72px "Cormorant Garamond",Georgia,serif';
-let EV=[],E=null,A=null,stream=null,photos=[],file=null,pngBlob=null,shooting=false,facing='user';
+let EV=[],E=null,A=null,stream=null,photos=[],file=null,pngBlob=null,gifFile=null,gifUrl=null,outKind='art',shooting=false,facing='user';
 
 function toast(t){const e=$('toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',4500)}
 function show(id){qsa('.view').forEach(v=>v.classList.toggle('on',v.id===id));window.scrollTo(0,0)}
@@ -259,7 +275,7 @@ $('hex').oninput=e=>{let v=e.target.value.trim();if(v[0]!=='#')v='#'+v;if(/^#[0-
 $('segM').onclick=e=>{if(e.target.dataset.m){E.frame=e.target.dataset.m==='1';paintEdit()}};
 
 function openEdit(c){
-  E=c?{...c}:newCfg();setPk(E.color);
+  E=c?{...c}:newCfg();E.gif={...defGif(),...(E.gif||{})};$('gText').value=E.gif.text;setPk(E.color);
   $('editTitle').textContent=c?'Editar evento':'Novo evento';
   $('evName').value=E.name;$('txt').value=E.text;$('msg').value=E.msg;
   show('edit');paintEdit();
@@ -274,6 +290,15 @@ async function paintEdit(){
   $('frameBox').style.display=fr?'block':'none';$('noFrameHint').style.display=fr?'none':'block';
   $('footCard').style.display=fr?'':'none';$('txtCard').style.display=fr?'':'none';
   if(fr)paintPicker();
+  const G=E.gif,ga=G.on&&E.n>1;
+  qsa('#segG button').forEach(b=>b.classList.toggle('on',(b.dataset.g==='1')===G.on));
+  qsa('#segGB button').forEach(b=>b.classList.toggle('on',(b.dataset.b==='1')===G.bgOn));
+  qsa('#segGD button').forEach(b=>b.classList.toggle('on',+b.dataset.d===G.delay));
+  qsa('#gSwatches .sw').forEach(b=>b.classList.toggle('on',b.dataset.c===G.bg));
+  $('gBg').value=G.bg;$('gbRow').style.display=G.bgOn?'flex':'none';
+  $('gifNeed').style.display=(G.on&&E.n===1)?'block':'none';
+  $('gifBox').style.display=ga?'block':'none';
+  if(ga)gifPreview();
   $('tcIn').value=E.textColor||autoText(E.color);
   $('tcAuto').style.borderColor=E.textColor?'':'#b8935a';
   $('customBox').style.display=E.footer==='custom'?'block':'none';
@@ -311,6 +336,95 @@ $('saveOnly').onclick=async()=>{if(await saveEv()){renderHome();show('home');toa
 $('saveOpen').onclick=async()=>{if(await saveEv()){renderHome();openCam(E)}};
 $('cancelEdit').onclick=()=>{show('home')};
 
+// ---------- GIF animado (codificador próprio, sem bibliotecas) ----------
+const defGif=()=>({on:false,text:'Quinta dos Esquilos',bgOn:true,bg:'#3f2412',delay:800});
+PALETTE.forEach(c=>{const b=document.createElement('button');b.className='sw';b.dataset.c=c;b.style.background=c;b.onclick=()=>{E.gif.bg=c;paintEdit()};$('gSwatches').insertBefore(b,$('gBg'))});
+$('segG').onclick=e=>{if(e.target.dataset.g){E.gif.on=e.target.dataset.g==='1';paintEdit()}};
+$('segGB').onclick=e=>{if(e.target.dataset.b){E.gif.bgOn=e.target.dataset.b==='1';paintEdit()}};
+$('segGD').onclick=e=>{if(e.target.dataset.d){E.gif.delay=+e.target.dataset.d;paintEdit()}};
+$('gText').oninput=e=>{E.gif.text=e.target.value;paintEdit()};
+$('gBg').oninput=e=>{E.gif.bg=e.target.value;paintEdit()};
+function pill(x,px,py,w,h,r){x.beginPath();x.moveTo(px+r,py);x.arcTo(px+w,py,px+w,py+h,r);x.arcTo(px+w,py+h,px,py+h,r);x.arcTo(px,py+h,px,py,r);x.arcTo(px,py,px+w,py,r);x.closePath()}
+function gifFrame(src,c,W,H){
+  const cv=document.createElement('canvas');cv.width=W;cv.height=H;const x=cv.getContext('2d'),g=c.gif;
+  drawCover(x,src,0,0,W,H);
+  if(g.text){
+    let fs=Math.round(H*.085);x.font='600 '+fs+'px "Cormorant Garamond",Georgia,serif';
+    let tw=x.measureText(g.text).width;const maxW=W*.88-(g.bgOn?fs*1.6:0);
+    if(tw>maxW){fs=Math.floor(fs*maxW/tw);x.font='600 '+fs+'px "Cormorant Garamond",Georgia,serif';tw=x.measureText(g.text).width}
+    const py=H-fs*1.25,padX=fs*.8,padY=fs*.45;
+    x.textAlign='center';x.textBaseline='middle';
+    if(g.bgOn){const w=tw+padX*2,h=fs+padY*2;pill(x,W/2-w/2,py-h/2,w,h,h/2);x.fillStyle=g.bg;x.fill();x.fillStyle=autoText(g.bg)}
+    else{x.fillStyle='#ffffff';x.shadowColor='rgba(0,0,0,.8)';x.shadowBlur=fs*.3;x.shadowOffsetY=2}
+    x.fillText(g.text,W/2,py);
+  }
+  return cv;
+}
+function gifPreview(){
+  const W=480,H=Math.round(W*PH[E.n]/1080),ph=document.createElement('canvas');ph.width=W;ph.height=H;
+  const x=ph.getContext('2d'),gr=x.createLinearGradient(0,0,W,H);gr.addColorStop(0,'#d8c9b0');gr.addColorStop(1,'#8a5a36');x.fillStyle=gr;x.fillRect(0,0,W,H);
+  const f=gifFrame(ph,E,W,H),p=$('gPrev');p.width=W;p.height=H;p.getContext('2d').drawImage(f,0,0);
+}
+function medianCut(px,K){
+  const boxes=[px];
+  while(boxes.length<K){
+    let bi=-1,best=-1,ch=0;
+    boxes.forEach((b,i)=>{if(b.length<2)return;const mn=[255,255,255],mx=[0,0,0];
+      for(const p of b)for(let k=0;k<3;k++){if(p[k]<mn[k])mn[k]=p[k];if(p[k]>mx[k])mx[k]=p[k]}
+      const r=[mx[0]-mn[0],mx[1]-mn[1],mx[2]-mn[2]],m=Math.max(r[0],r[1],r[2]),sc=m*Math.sqrt(b.length);
+      if(sc>best){best=sc;bi=i;ch=r.indexOf(m)}});
+    if(bi<0||best<=0)break;
+    const b=boxes[bi].sort((a,c)=>a[ch]-c[ch]),mid=b.length>>1;
+    boxes.splice(bi,1,b.slice(0,mid),b.slice(mid));
+  }
+  return boxes.map(b=>{let r=0,g=0,bl=0;for(const p of b){r+=p[0];g+=p[1];bl+=p[2]}const n=b.length||1;return[Math.round(r/n),Math.round(g/n),Math.round(bl/n)]});
+}
+function lzw(idx,minCode){
+  const clear=1<<minCode,eoi=clear+1,out=[];let cur=0,bits=0,codeSize=minCode+1,maxcode=(1<<codeSize)-1,next=eoi+1;const dict=new Map();
+  const emit=c=>{cur|=c<<bits;bits+=codeSize;while(bits>=8){out.push(cur&255);cur>>>=8;bits-=8}};
+  const grow=()=>{if(next>maxcode&&codeSize<12){codeSize++;maxcode=codeSize===12?4096:(1<<codeSize)-1}};
+  emit(clear);let prefix=idx[0];
+  for(let i=1;i<idx.length;i++){
+    const k=idx[i],key=(prefix<<8)|k,hit=dict.get(key);
+    if(hit!==undefined){prefix=hit;continue}
+    emit(prefix);grow();
+    if(next<4096)dict.set(key,next++);
+    else{emit(clear);dict.clear();codeSize=minCode+1;maxcode=(1<<codeSize)-1;next=eoi+1}
+    prefix=k;
+  }
+  emit(prefix);grow();emit(eoi);if(bits>0)out.push(cur&255);
+  return out;
+}
+function encodeGif(datas,W,H,delayMs){
+  const total=W*H,step=Math.max(1,Math.floor(total*datas.length/20000)),samples=[];
+  datas.forEach(d=>{for(let i=0;i<total;i+=step)samples.push([d[i*4],d[i*4+1],d[i*4+2]])});
+  const pal=medianCut(samples,256);while(pal.length<256)pal.push([0,0,0]);
+  const cache=new Map();
+  const near=(r,g,b)=>{const key=((r>>3)<<10)|((g>>3)<<5)|(b>>3);let v=cache.get(key);if(v!==undefined)return v;
+    let best=0,bd=1e12;for(let i=0;i<256;i++){const p=pal[i],dr=p[0]-r,dg=p[1]-g,db=p[2]-b,d=dr*dr*3+dg*dg*4+db*db*2;if(d<bd){bd=d;best=i}}
+    cache.set(key,best);return best};
+  const b=[],w16=v=>b.push(v&255,(v>>8)&255),cs=Math.max(2,Math.round(delayMs/10));
+  for(const ch of 'GIF89a')b.push(ch.charCodeAt(0));
+  w16(W);w16(H);b.push(0xF7,0,0);
+  for(const p of pal)b.push(p[0],p[1],p[2]);
+  b.push(0x21,0xFF,0x0B);for(const ch of 'NETSCAPE2.0')b.push(ch.charCodeAt(0));b.push(3,1,0,0,0);
+  for(const d of datas){
+    const idx=new Uint8Array(total);for(let i=0;i<total;i++)idx[i]=near(d[i*4],d[i*4+1],d[i*4+2]);
+    b.push(0x21,0xF9,4,0,cs&255,cs>>8,0,0);
+    b.push(0x2C);w16(0);w16(0);w16(W);w16(H);b.push(0);
+    b.push(8);const data=lzw(idx,8);
+    for(let i=0;i<data.length;i+=255){const n=Math.min(255,data.length-i);b.push(n);for(let k=0;k<n;k++)b.push(data[i+k])}
+    b.push(0);
+  }
+  b.push(0x3B);
+  return new Uint8Array(b);
+}
+function makeGif(list,c){
+  const W=480,H=Math.round(W*PH[c.n]/1080);
+  const datas=list.map(p=>gifFrame(p,c,W,H).getContext('2d').getImageData(0,0,W,H).data);
+  return new Blob([encodeGif(datas,W,H,c.gif.delay)],{type:'image/gif'});
+}
+
 // ---------- câmera ----------
 async function openCam(c){
   A=c;$('box').style.setProperty('--ar',1080/PH[A.n]);show('cam');startCam();
@@ -342,36 +456,56 @@ $('shoot').onclick=async()=>{
   file=null;pngBlob=null;
   $('final').toBlob(b=>{file=new File([b],'foto-cabine.jpg',{type:'image/jpeg'})},'image/jpeg',.92);
   $('final').toBlob(b=>{pngBlob=b},'image/png');
+  gifFile=null;$('segOut').style.display='none';
+  if(A.gif&&A.gif.on&&A.n>1){
+    $('status').textContent='Criando GIF…';await sleep(40);
+    try{const blob=makeGif(photos,A);gifFile=new File([blob],'gif-cabine.gif',{type:'image/gif'});
+      if(gifUrl)URL.revokeObjectURL(gifUrl);gifUrl=URL.createObjectURL(blob);$('gifPrev').src=gifUrl;$('segOut').style.display='flex'}
+    catch(err){toast('Não consegui criar o GIF.')}
+  }
+  setOut('art');
   show('result');
 };
 
 // ---------- resultado / envio ----------
-function download(){const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download='foto-cabine.jpg';document.body.appendChild(a);a.click();a.remove()}
-$('save').onclick=()=>{if(file){download();toast('Foto salva no aparelho.')}};
+function download(f){const a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();a.remove()}
+const curFile=()=>outKind==='gif'?gifFile:file;
+function setOut(k){
+  outKind=k;$('artCard').style.display=k==='art'?'':'none';$('gifCardR').style.display=k==='gif'?'':'none';
+  qsa('#segOut button').forEach(b=>b.classList.toggle('on',b.dataset.k===k));
+  $('share').textContent=k==='gif'?'Compartilhar GIF (escolher contato)':'Compartilhar com a foto anexada';
+}
+$('segOut').onclick=e=>{if(e.target.dataset.k)setOut(e.target.dataset.k)};
+$('save').onclick=()=>{const f=curFile();if(f){download(f);toast(outKind==='gif'?'GIF salvo no aparelho.':'Foto salva no aparelho.')}};
 function phoneDigits(){let d=$('phone').value.replace(/\D/g,'');if(d&&d.length<=11&&!d.startsWith('55'))d='55'+d;return d}
-async function shareFile(){   // menu de compartilhar do celular, com a imagem já anexada
-  if(navigator.canShare&&navigator.canShare({files:[file]})){
-    try{await navigator.share({files:[file],text:A.msg||''});return true}catch(e){if(e.name==='AbortError')return true}
+async function shareFile(f){   // menu de compartilhar do celular, com o arquivo já anexado
+  if(navigator.canShare&&navigator.canShare({files:[f]})){
+    try{await navigator.share({files:[f],text:A.msg||''});return true}catch(e){if(e.name==='AbortError')return true}
   }
   return false;
 }
 $('wa').onclick=async()=>{
-  if(!file){toast('Aguarde um instante e tente de novo.');return}
+  const f=curFile();
+  if(!f){toast('Aguarde um instante e tente de novo.');return}
   const msg=A.msg||'',d=phoneDigits();
   if(!d){   // sem número: escolher o contato no menu de compartilhar
-    if(await shareFile())return;
-    download();toast('Foto salva! Abra o WhatsApp e anexe pela galeria.');
-    setTimeout(()=>{location.href='https://wa.me/?text='+encodeURIComponent(msg)},900);return;
+    if(await shareFile(f))return;
+    download(f);toast('Arquivo salvo! Abra o WhatsApp e anexe pela galeria.');
+    setTimeout(()=>{location.href='https://wa.me/?text='+encodeURIComponent(msg)},1000);return;
   }
   if(d.length<12){toast('Confira o número: use DDD + telefone.');return}
+  if(outKind==='gif'){   // a área de transferência não aceita GIF: salva e abre a conversa
+    download(f);toast('GIF salvo! Na conversa, anexe pela galeria/arquivos. Para anexar automático, use "Compartilhar GIF".');
+    setTimeout(()=>{location.href='https://wa.me/'+d+'?text='+encodeURIComponent(msg)},1600);return;
+  }
   // com número: abre direto a conversa do cliente (o WhatsApp não aceita anexo por link, então a foto vai copiada)
   let copied=false;
   try{if(window.ClipboardItem&&navigator.clipboard&&pngBlob){await navigator.clipboard.write([new ClipboardItem({'image/png':pngBlob})]);copied=true}}catch(e){}
-  if(!copied)download();
+  if(!copied)download(f);
   toast(copied?'Foto copiada! Na conversa, toque e segure no campo de mensagem e escolha Colar.':'Foto salva! Na conversa, anexe pela galeria.');
   setTimeout(()=>{location.href='https://wa.me/'+d+'?text='+encodeURIComponent(msg)},copied?1300:900);
 };
-$('share').onclick=async()=>{if(!file){toast('Aguarde um instante e tente de novo.');return}if(!(await shareFile())){download();toast('Seu aparelho não permite anexar direto. Foto salva na galeria.')}};
+$('share').onclick=async()=>{const f=curFile();if(!f){toast('Aguarde um instante e tente de novo.');return}if(!(await shareFile(f))){download(f);toast('Seu aparelho não permite anexar direto. Arquivo salvo.')}};
 $('retake').onclick=()=>{show('cam');startCam()};
 $('next').onclick=()=>{$('phone').value='';file=null;show('cam');startCam()};
 $('home2').onclick=()=>{$('phone').value='';file=null;show('home')};
